@@ -1,0 +1,84 @@
+# v0.0.0
+services:
+  # Custom Dockerfile (PHP) service
+  php001-service:
+    build:
+      context: .
+      dockerfile: Dockerfile # This is for custom php docker image.
+    container_name: php001-container
+    working_dir: /var/www
+    volumes:
+      - ./code:/var/www #code is the foldername which will contain your project files
+      - ./server/php/local.ini:/usr/local/etc/php/conf.d/local.ini #local.ini is to set your required php settings
+    networks:
+      - php001-network
+    depends_on:
+      - mysql001-service #mysql service name
+      - redis001-service #redis service name
+
+  # Nginx service
+  nginx001-service:
+    image: nginx:latest
+    container_name: nginx001-container
+    working_dir: /var/www
+    volumes:
+      - ./code:/var/www #code is the foldername which will contain your project files
+      - ./server/nginx/default.conf:/etc/nginx/conf.d/default.conf #default.conf is to set your required server settings
+    ports:
+      - "5173:5173"
+      - "8089:80" #replace the 8080 port according port availibility
+    networks:
+      - php001-network
+    depends_on:
+      - php001-service #php service name
+
+  # MySQL service
+  mysql001-service:
+    #use this name for DB_HOST in the .env file of laravel to connect it with mysql
+    #use 3306 as DB_PORT in the .env file of laravel. This port should be default port for laravel-mysql for docker even if you set different port below.
+    image: mysql:8.0
+    container_name: mysql001-container
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: database_name1 #use this name for DB_DATABASE in the .env file of laravel
+      MYSQL_USER: database_user #use this name for DB_USERNAME in the .env file of laravel
+      MYSQL_PASSWORD: password #use this name for DB_PASSWORD in the .env file of laravel
+    volumes:
+      - dbdata001:/var/lib/mysql
+    ports:
+      - "3308:3306" #replace the 3306 port according port availibility
+    networks:
+      - php001-network
+
+  # Redis service
+  redis001-service:
+    image: redis:latest
+    container_name: redis001-container
+    ports:
+      - "6381:6379" #replace the 6379 port according port availibility
+    networks:
+      - php001-network
+
+  # phpMyAdmin service
+  phpmyadmin001-service:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin001-container
+    environment:
+      PMA_HOST: mysql001-service #mysql service name
+      MYSQL_ROOT_PASSWORD: root
+    ports:
+      - "8084:80" #replace the 8081 port according port availibility
+    networks:
+      - php001-network
+    depends_on:
+      - mysql001-service #mysql service name
+
+# Volumes
+volumes:
+  dbdata001:
+    driver: local
+
+# Networks
+networks:
+  php001-network:
+    driver: bridge
